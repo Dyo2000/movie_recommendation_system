@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using MovieRecommendation.API.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -8,6 +11,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddAuthorization();
 
+
+builder.Services.AddDbContext<MovieRecommendationContext>(options =>
+    options.UseSqlite("Data Source=movies.db"));
+    
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
