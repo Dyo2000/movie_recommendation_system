@@ -6,11 +6,14 @@ This is a .NET 8 Web API for managing and recommending movies based on genres. T
 
 ## Features
 
-- Retrieve all genres.
-- Get a random movie with optional genre filtering.
-- Get multiple movies filtered by selected genres.
-- Fully documented with **Swagger UI**.
-- Seeded database with sample movies and genres.
+- Get all genres: `/api/Movies/genres`
+- Get a random movie: `/api/Movies/random`  
+  - Can filter by genre IDs (`genreIds`), optional.
+- Get multiple movies by genre(s): `/api/Movies/by-genres`  
+  - Currently requires at least one genre to be selected.
+- Integration with TMDb to fetch real movie data.
+- Swagger UI for testing endpoints.
+
 
 ---
 
