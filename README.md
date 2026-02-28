@@ -1,25 +1,43 @@
-# movie_recommendation_system
+# Movie Recommendation API
 
-A full-stack movie recommendation system that suggests films by genre or random selection, with planned support for user profiles, reviews, and personalized recommendations.
+This is a .NET 8 Web API for managing and recommending movies based on genres. The API is built with **ASP.NET Core**, **Entity Framework Core**, and **SQLite**.
 
-## Project layout
+---
 
-- backend/MovieRecommendation.API — ASP.NET Core Web API
-  - Controllers: [HealthController](backend/MovieRecommendation.API/Controllers/HealthController.cs)
-  - Models: [`Movie`](backend/MovieRecommendation.API/Models/Movie.cs), [`Genre`](backend/MovieRecommendation.API/Models/Genre.cs)
-  - Entry: [Program.cs](backend/MovieRecommendation.API/Program.cs)
-- frontend — (frontend app folder)
+## Features
 
-## Features (current)
-- Basic health endpoint: `GET /api/health` (see [`MovieRecommendation.API.Controllers.HealthController`](backend/MovieRecommendation.API/Controllers/HealthController.cs)).
-- Placeholder weather demo endpoint remains in [Program.cs](backend/MovieRecommendation.API/Program.cs).
-- Domain models: [`MovieRecommendation.API.Models.Movie`](backend/MovieRecommendation.API/Models/Movie.cs) and [`MovieRecommendation.API.Models.Genre`](backend/MovieRecommendation.API/Models/Genre.cs).
+- Retrieve all genres.
+- Get a random movie with optional genre filtering.
+- Get multiple movies filtered by selected genres.
+- Fully documented with **Swagger UI**.
+- Seeded database with sample movies and genres.
 
-## Running the backend (development)
-1. Ensure .NET SDK is installed (recommended .NET 7+).
-2. From repository root, run:
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description | Body / Params |
+|--------|----------|-------------|---------------|
+| GET | `/api/Movies/genres` | Retrieve all genres | None |
+| POST | `/api/Movies/random` | Returns a random movie based on optional genre filter | `{ "genreIds": [1, 2] }` |
+| POST | `/api/Movies/by-genres` | Returns movies filtered by selected genres | `{ "genreIds": [1, 2] }` |
+
+> If no genres are provided for the random movie endpoint, a completely random movie is returned.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- SQLite (included via EF Core provider)
+- Optional: Postman for API testing
+
+### Run Locally
+
 ```bash
-cd 
+git clone <repo-url>
+cd MovieRecommendation.API
 dotnet build
 dotnet run
-```
