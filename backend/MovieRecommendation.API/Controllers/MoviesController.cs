@@ -29,34 +29,41 @@ namespace MovieRecommendation.API.Controllers
             return Ok(genres);
         }
 
-        // Random movie, biased toward liked genres
+        // Random movie, biased toward liked genres and excluding disliked movies
         [HttpPost("random")]
         public IActionResult GetRandomMovie([FromBody] GenreFilter? filter)
         {
             var query = _context.Movies.AsQueryable();
 
-            // Optional filter by genre IDs
             if (filter?.GenreIds != null && filter.GenreIds.Any())
                 query = query.Where(m => filter.GenreIds.Contains(m.GenreId));
 
+            var dislikedMovieIds = _context.UserMoviePreferences
+                .Where(p => !p.IsLiked)
+                .Select(p => p.MovieId)
+                .ToList();
+
+            query = query.Where(m => !dislikedMovieIds.Contains(m.Id));
+
             var movies = query.ToList();
             if (!movies.Any())
-                return NotFound("No movies found.");
+                return NotFound("No movies available for the selected genres and preferences.");
 
-            // Fetch liked genres for weighting (replace this with your actual tracking table)
-            var likedGenreIds = new List<int>(); // TODO: populate from user preference table
+            var likedGenreIds = _context.UserMoviePreferences
+                .Where(p => p.IsLiked)
+                .Select(p => p.Movie!.GenreId)
+                .ToList();
 
-            // Calculate weights for each movie
             var weightedMovies = movies.Select(m =>
             {
-                int weight = likedGenreIds.Contains(m.GenreId) ? 5 : 1; // 5x weight if liked
+                int weight = likedGenreIds.Contains(m.GenreId) ? 5 : 1;
                 return new { Movie = m, Weight = weight };
             }).ToList();
 
-            // Weighted random selection
             int totalWeight = weightedMovies.Sum(w => w.Weight);
             var rnd = new Random();
             int roll = rnd.Next(totalWeight);
+
             foreach (var w in weightedMovies)
             {
                 if (roll < w.Weight)
@@ -64,7 +71,6 @@ namespace MovieRecommendation.API.Controllers
                 roll -= w.Weight;
             }
 
-            // Fallback (should not hit)
             return Ok(weightedMovies.First().Movie);
         }
 
@@ -80,6 +86,56 @@ namespace MovieRecommendation.API.Controllers
                 .ToList();
 
             return Ok(movies);
+        }
+
+        // Like a movie
+        [HttpPost("like")]
+        public IActionResult LikeMovie([FromBody] int movieId)
+        {
+            var existing = _context.UserMoviePreferences
+                .FirstOrDefault(p => p.MovieId == movieId && p.UserId == 1);
+
+            if (existing != null)
+            {
+                existing.IsLiked = true;
+            }
+            else
+            {
+                _context.UserMoviePreferences.Add(new UserMoviePreference
+                {
+                    MovieId = movieId,
+                    IsLiked = true,
+                    UserId = 1 // TODO: replace with actual authenticated user ID
+                });
+            }
+
+            _context.SaveChanges();
+            return Ok();
+        }
+
+        // Dislike a movie
+        [HttpPost("dislike")]
+        public IActionResult DislikeMovie([FromBody] int movieId)
+        {
+            var existing = _context.UserMoviePreferences
+                .FirstOrDefault(p => p.MovieId == movieId && p.UserId == 1);
+
+            if (existing != null)
+            {
+                existing.IsLiked = false;
+            }
+            else
+            {
+                _context.UserMoviePreferences.Add(new UserMoviePreference
+                {
+                    MovieId = movieId,
+                    IsLiked = false,
+                    UserId = 1 // TODO: replace with actual authenticated user ID
+                });
+            }
+
+            _context.SaveChanges();
+            return Ok();
         }
     }
 }

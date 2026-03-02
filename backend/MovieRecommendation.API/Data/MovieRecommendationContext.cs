@@ -16,5 +16,7 @@ namespace MovieRecommendation.API.Data
 
         public DbSet<MovieFeedback> MovieFeedbacks { get; set; } = null!;
 
+        public DbSet<UserMoviePreference> UserMoviePreferences { get; set; }
+
     }
 }
