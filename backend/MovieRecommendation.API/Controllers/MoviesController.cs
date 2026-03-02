@@ -18,6 +18,9 @@ namespace MovieRecommendation.API.Controllers
             _context = context;
         }
 
+        // =========================
+        // GENRES
+        // =========================
         [HttpGet("genres")]
         public IActionResult GetGenres()
         {
@@ -28,6 +31,9 @@ namespace MovieRecommendation.API.Controllers
             return Ok(genres);
         }
 
+        // =========================
+        // RANDOM MOVIE (from local DB)
+        // =========================
         [HttpPost("random")]
         public IActionResult GetRandomMovie([FromBody] GenreFilter? filter)
         {
@@ -44,6 +50,9 @@ namespace MovieRecommendation.API.Controllers
             return Ok(movies[rnd.Next(movies.Count)]);
         }
 
+        // =========================
+        // GET ALL MOVIES BY GENRES
+        // =========================
         [HttpPost("by-genres")]
         public IActionResult GetByGenres([FromBody] GenreFilter filter)
         {
@@ -55,6 +64,64 @@ namespace MovieRecommendation.API.Controllers
                 .ToList();
 
             return Ok(movies);
+        }
+
+        // =========================
+        // LIKE MOVIE
+        // =========================
+        [HttpPost("like")]
+        public IActionResult LikeMovie([FromBody] FeedbackRequest request)
+        {
+            if (request == null || request.ExternalMovieId <= 0)
+                return BadRequest("Invalid movie id.");
+
+            var existing = _context.MovieFeedbacks
+                .FirstOrDefault(x => x.ExternalMovieId == request.ExternalMovieId);
+
+            if (existing != null)
+            {
+                existing.Liked = true;
+            }
+            else
+            {
+                _context.MovieFeedbacks.Add(new MovieFeedback
+                {
+                    ExternalMovieId = request.ExternalMovieId,
+                    Liked = true
+                });
+            }
+
+            _context.SaveChanges();
+            return Ok("Movie liked.");
+        }
+
+        // =========================
+        // DISLIKE MOVIE
+        // =========================
+        [HttpPost("dislike")]
+        public IActionResult DislikeMovie([FromBody] FeedbackRequest request)
+        {
+            if (request == null || request.ExternalMovieId <= 0)
+                return BadRequest("Invalid movie id.");
+
+            var existing = _context.MovieFeedbacks
+                .FirstOrDefault(x => x.ExternalMovieId == request.ExternalMovieId);
+
+            if (existing != null)
+            {
+                existing.Liked = false;
+            }
+            else
+            {
+                _context.MovieFeedbacks.Add(new MovieFeedback
+                {
+                    ExternalMovieId = request.ExternalMovieId,
+                    Liked = false
+                });
+            }
+
+            _context.SaveChanges();
+            return Ok("Movie disliked.");
         }
     }
 }
