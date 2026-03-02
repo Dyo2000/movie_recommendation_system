@@ -32,19 +32,30 @@ namespace MovieRecommendation.API.Controllers
         }
 
         // =========================
-        // RANDOM MOVIE (from local DB)
+        // RANDOM MOVIE (with feedback filtering)
         // =========================
         [HttpPost("random")]
         public IActionResult GetRandomMovie([FromBody] GenreFilter? filter)
         {
             var query = _context.Movies.AsQueryable();
 
+            // Filter by selected genres
             if (filter?.GenreIds != null && filter.GenreIds.Any())
                 query = query.Where(m => filter.GenreIds.Contains(m.GenreId));
 
+            // Get disliked movie IDs
+            var dislikedIds = _context.MovieFeedbacks
+                .Where(f => !f.Liked)
+                .Select(f => f.ExternalMovieId)
+                .ToList();
+
+            // Exclude disliked movies
+            query = query.Where(m => !dislikedIds.Contains(m.ExternalId));
+
             var movies = query.ToList();
+
             if (!movies.Any())
-                return NotFound("No movies found.");
+                return NotFound("No movies available (all may be disliked).");
 
             var rnd = new Random();
             return Ok(movies[rnd.Next(movies.Count)]);
@@ -67,7 +78,7 @@ namespace MovieRecommendation.API.Controllers
         }
 
         // =========================
-        // LIKE MOVIE
+        // LIKE
         // =========================
         [HttpPost("like")]
         public IActionResult LikeMovie([FromBody] FeedbackRequest request)
@@ -96,7 +107,7 @@ namespace MovieRecommendation.API.Controllers
         }
 
         // =========================
-        // DISLIKE MOVIE
+        // DISLIKE
         // =========================
         [HttpPost("dislike")]
         public IActionResult DislikeMovie([FromBody] FeedbackRequest request)
