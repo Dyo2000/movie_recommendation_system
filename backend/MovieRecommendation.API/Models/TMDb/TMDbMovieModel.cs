@@ -2,12 +2,10 @@ using System.Collections.Generic;
 
 namespace MovieRecommendation.API.Models.TMDb
 {
-    // Represents a paginated response from TMDb's API
+    // Represents a paginated response from TMDb API
     public class TMDbMovieResult
     {
         public int Page { get; set; }
-
-        // List of movies returned in this page
         public List<TMDbMovie>? Results { get; set; }
     }
 
