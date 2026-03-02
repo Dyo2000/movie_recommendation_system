@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using MovieRecommendation.API.Models.TMDb;
 using MovieRecommendation.API.Models.Settings;
 
 namespace MovieRecommendation.API.Services
@@ -16,87 +17,59 @@ namespace MovieRecommendation.API.Services
         }
 
         /// <summary>
-        /// Get movies from TMDb filtered by genre IDs.
-        /// Example: Action (28), Comedy (35)
+        /// Get list of all movie genres from TMDb
         /// </summary>
-        public async Task<List<TMDbMovieDto>> GetMoviesByGenresAsync(List<int> genreIds, int page = 1)
+        public async Task<List<TMDbGenre>> GetGenresAsync()
         {
-            if (genreIds == null || !genreIds.Any())
-                return new List<TMDbMovieDto>();
-
-            var genreString = string.Join(",", genreIds);
-
-            var url =
-                $"{_settings.BaseUrl}/discover/movie" +
-                $"?api_key={_settings.ApiKey}" +
-                $"&with_genres={genreString}" +
-                $"&page={page}";
+            var url = $"{_settings.BaseUrl}/genre/movie/list?api_key={_settings.ApiKey}";
 
             var response = await _httpClient.GetAsync(url);
-
-            if (!response.IsSuccessStatusCode)
-                return new List<TMDbMovieDto>();
+            response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
+            var result = JsonSerializer.Deserialize<TMDbGenreResponse>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            var result = JsonSerializer.Deserialize<TMDbDiscoverResponse>(json, options);
-
-            return result?.Results ?? new List<TMDbMovieDto>();
+            return result?.Genres ?? new List<TMDbGenre>();
         }
 
         /// <summary>
-        /// Optional: Get popular movies (useful for testing or "Surprise Me")
+        /// Discover movies by genre IDs
         /// </summary>
-        public async Task<List<TMDbMovieDto>> GetPopularMoviesAsync(int page = 1)
+        public async Task<List<TMDbMovie>> GetMoviesByGenresAsync(List<int> genreIds)
         {
-            var url =
-                $"{_settings.BaseUrl}/movie/popular" +
-                $"?api_key={_settings.ApiKey}" +
-                $"&page={page}";
+            var genreQuery = string.Join(",", genreIds);
+
+            var url = $"{_settings.BaseUrl}/discover/movie?api_key={_settings.ApiKey}&with_genres={genreQuery}";
 
             var response = await _httpClient.GetAsync(url);
-
-            if (!response.IsSuccessStatusCode)
-                return new List<TMDbMovieDto>();
+            response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
+            var result = JsonSerializer.Deserialize<TMDbMovieResponse>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            var result = JsonSerializer.Deserialize<TMDbDiscoverResponse>(json, options);
-
-            return result?.Results ?? new List<TMDbMovieDto>();
+            return result?.Results ?? new List<TMDbMovie>();
         }
-    }
 
-    /// <summary>
-    /// Wrapper for TMDb discover/popular responses
-    /// </summary>
-    public class TMDbDiscoverResponse
-    {
-        public int Page { get; set; }
-        public List<TMDbMovieDto> Results { get; set; } = new();
-    }
+        /// <summary>
+        /// Get popular movies
+        /// </summary>
+        public async Task<List<TMDbMovie>> GetPopularMoviesAsync()
+        {
+            var url = $"{_settings.BaseUrl}/movie/popular?api_key={_settings.ApiKey}";
 
-    /// <summary>
-    /// Simplified movie object returned from TMDb
-    /// </summary>
-    public class TMDbMovieDto
-    {
-        public int Id { get; set; }
-        public string? Title { get; set; }
-        public string? Overview { get; set; }
-        public string? Poster_Path { get; set; }
-        public string? Release_Date { get; set; }
-        public double Vote_Average { get; set; }
-        public List<int>? Genre_Ids { get; set; }
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var result = JsonSerializer.Deserialize<TMDbMovieResponse>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return result?.Results ?? new List<TMDbMovie>();
+        }
     }
 }

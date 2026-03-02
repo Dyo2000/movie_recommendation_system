@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using MovieRecommendation.API.Services;
 using MovieRecommendation.API.Models;
+using MovieRecommendation.API.Services;
 
 namespace MovieRecommendation.API.Controllers
 {
@@ -16,14 +16,20 @@ namespace MovieRecommendation.API.Controllers
         }
 
         /// <summary>
-        /// Get movies from TMDb based on selected genre IDs.
-        /// Example: [28, 35] for Action + Comedy
+        /// Get all available movie genres from TMDb
         /// </summary>
-        /// <param name="filter">List of TMDb genre IDs</param>
-        /// <returns>List of movies from TMDb</returns>
+        [HttpGet("genres")]
+        public async Task<IActionResult> GetGenres()
+        {
+            var genres = await _tmdbService.GetGenresAsync();
+            return Ok(genres);
+        }
+
+        /// <summary>
+        /// Discover movies based on selected TMDb genre IDs
+        /// Example body: { "genreIds": [28, 35] }
+        /// </summary>
         [HttpPost("discover")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DiscoverMovies([FromBody] GenreFilter filter)
         {
             if (filter == null || filter.GenreIds == null || !filter.GenreIds.Any())
@@ -34,28 +40,21 @@ namespace MovieRecommendation.API.Controllers
             return Ok(movies);
         }
 
-
         /// <summary>
-        /// Returns ONE random movie based on selected TMDb genre IDs.
+        /// Surprise me — returns one random popular movie
         /// </summary>
-        [HttpPost("random")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetRandomMovie([FromBody] GenreFilter filter)
+        [HttpGet("random")]
+        public async Task<IActionResult> GetRandomMovie()
         {
-            if (filter == null || filter.GenreIds == null || !filter.GenreIds.Any())
-                return BadRequest("At least one genre must be selected.");
-
-            var movies = await _tmdbService.GetMoviesByGenresAsync(filter.GenreIds);
+            var movies = await _tmdbService.GetPopularMoviesAsync();
 
             if (movies == null || !movies.Any())
-                return NotFound("No movies found for the selected genres.");
+                return NotFound("No movies found.");
 
             var random = new Random();
             var movie = movies[random.Next(movies.Count)];
 
-            return Ok(movie); // single movie
+            return Ok(movie);
         }
     }
 }
