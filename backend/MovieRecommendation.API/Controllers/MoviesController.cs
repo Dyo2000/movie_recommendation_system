@@ -1,5 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MovieRecommendation.API.Data;
 using MovieRecommendation.API.Models;
 
@@ -16,81 +18,43 @@ namespace MovieRecommendation.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// Get all genres in the system.
-        /// </summary>
-        /// <returns>List of genres</returns>
         [HttpGet("genres")]
-        [ProducesResponseType(typeof(IEnumerable<Genre>), 200)]
-        public async Task<ActionResult<IEnumerable<Genre>>> GetGenres()
+        public IActionResult GetGenres()
         {
-            var genres = await _context.Genres.Include(g => g.Movies).ToListAsync();
+            var genres = _context.Genres
+                .Select(g => new { g.Id, g.Name, g.ExternalId })
+                .ToList();
+
             return Ok(genres);
         }
 
-        /// <summary>
-        /// Returns a random movie based on selected genres.
-        /// If no genres are provided, returns a completely random movie.
-        /// </summary>
-        /// <param name="filter">Optional list of genre IDs</param>
-        /// <returns>A random movie</returns>
         [HttpPost("random")]
-        [ProducesResponseType(typeof(Movie), 200)]
-        [ProducesResponseType(404)]
-        public async Task<ActionResult<Movie>> GetRandomMovie([FromBody] GenreFilter? filter)
+        public IActionResult GetRandomMovie([FromBody] GenreFilter? filter)
         {
-            IQueryable<Movie> query = _context.Movies.Include(m => m.Genre);
+            var query = _context.Movies.AsQueryable();
 
             if (filter?.GenreIds != null && filter.GenreIds.Any())
-            {
                 query = query.Where(m => filter.GenreIds.Contains(m.GenreId));
-            }
 
-            var count = await query.CountAsync();
-            if (count == 0) return NotFound("No movies found for the selected genres.");
+            var movies = query.ToList();
+            if (!movies.Any())
+                return NotFound("No movies found.");
 
-            var index = new Random().Next(count);
-            var movie = await query.Skip(index).FirstOrDefaultAsync();
-
-            if (movie == null) return NotFound();
-
-            return movie;
+            var rnd = new Random();
+            return Ok(movies[rnd.Next(movies.Count)]);
         }
 
-        /// <summary>
-        /// Returns multiple movies based on selected genres.
-        /// If no genres are provided, returns all movies (optional: could limit results).
-        /// </summary>
-        /// <param name="filter">Optional list of genre IDs</param>
-        /// <returns>List of movies</returns>
         [HttpPost("by-genres")]
-        [ProducesResponseType(typeof(IEnumerable<Movie>), 200)]
-        [ProducesResponseType(404)]
-        public async Task<ActionResult<IEnumerable<Movie>>> GetMoviesByGenres([FromBody] GenreFilter? filter)
+        public IActionResult GetByGenres([FromBody] GenreFilter filter)
         {
-            IQueryable<Movie> query = _context.Movies.Include(m => m.Genre);
+            if (filter?.GenreIds == null || !filter.GenreIds.Any())
+                return BadRequest("At least one genre must be selected.");
 
-            if (filter?.GenreIds != null && filter.GenreIds.Any())
-            {
-                query = query.Where(m => filter.GenreIds.Contains(m.GenreId));
-            }
+            var movies = _context.Movies
+                .Where(m => filter.GenreIds.Contains(m.GenreId))
+                .ToList();
 
-            var movies = await query.ToListAsync();
-
-            if (!movies.Any()) return NotFound("No movies found for the selected genres.");
-
-            return movies;
+            return Ok(movies);
         }
-    }
-
-    /// <summary>
-    /// Filter object for movie selection based on genres.
-    /// </summary>
-    public class GenreFilter
-    {
-        /// <summary>
-        /// Optional list of genre IDs to filter the movies
-        /// </summary>
-        public List<int>? GenreIds { get; set; }
     }
 }

@@ -11,4 +11,9 @@ namespace MovieRecommendation.API.Models
 
         public List<Movie> Movies { get; set; } = new();
     }
+
+    public class GenreFilter
+    {
+        public List<int>? GenreIds { get; set; }
+    }
 }
