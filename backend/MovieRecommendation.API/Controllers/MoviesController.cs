@@ -18,9 +18,7 @@ namespace MovieRecommendation.API.Controllers
             _context = context;
         }
 
-        // =========================
-        // GENRES
-        // =========================
+        // Get all genres
         [HttpGet("genres")]
         public IActionResult GetGenres()
         {
@@ -31,39 +29,46 @@ namespace MovieRecommendation.API.Controllers
             return Ok(genres);
         }
 
-        // =========================
-        // RANDOM MOVIE (with feedback filtering)
-        // =========================
+        // Random movie, biased toward liked genres
         [HttpPost("random")]
         public IActionResult GetRandomMovie([FromBody] GenreFilter? filter)
         {
             var query = _context.Movies.AsQueryable();
 
-            // Filter by selected genres
+            // Optional filter by genre IDs
             if (filter?.GenreIds != null && filter.GenreIds.Any())
                 query = query.Where(m => filter.GenreIds.Contains(m.GenreId));
 
-            // Get disliked movie IDs
-            var dislikedIds = _context.MovieFeedbacks
-                .Where(f => !f.Liked)
-                .Select(f => f.ExternalMovieId)
-                .ToList();
-
-            // Exclude disliked movies
-            query = query.Where(m => !dislikedIds.Contains(m.ExternalId));
-
             var movies = query.ToList();
-
             if (!movies.Any())
-                return NotFound("No movies available (all may be disliked).");
+                return NotFound("No movies found.");
 
+            // Fetch liked genres for weighting (replace this with your actual tracking table)
+            var likedGenreIds = new List<int>(); // TODO: populate from user preference table
+
+            // Calculate weights for each movie
+            var weightedMovies = movies.Select(m =>
+            {
+                int weight = likedGenreIds.Contains(m.GenreId) ? 5 : 1; // 5x weight if liked
+                return new { Movie = m, Weight = weight };
+            }).ToList();
+
+            // Weighted random selection
+            int totalWeight = weightedMovies.Sum(w => w.Weight);
             var rnd = new Random();
-            return Ok(movies[rnd.Next(movies.Count)]);
+            int roll = rnd.Next(totalWeight);
+            foreach (var w in weightedMovies)
+            {
+                if (roll < w.Weight)
+                    return Ok(w.Movie);
+                roll -= w.Weight;
+            }
+
+            // Fallback (should not hit)
+            return Ok(weightedMovies.First().Movie);
         }
 
-        // =========================
-        // GET ALL MOVIES BY GENRES
-        // =========================
+        // Get movies by genres (all matches)
         [HttpPost("by-genres")]
         public IActionResult GetByGenres([FromBody] GenreFilter filter)
         {
@@ -75,64 +80,6 @@ namespace MovieRecommendation.API.Controllers
                 .ToList();
 
             return Ok(movies);
-        }
-
-        // =========================
-        // LIKE
-        // =========================
-        [HttpPost("like")]
-        public IActionResult LikeMovie([FromBody] FeedbackRequest request)
-        {
-            if (request == null || request.ExternalMovieId <= 0)
-                return BadRequest("Invalid movie id.");
-
-            var existing = _context.MovieFeedbacks
-                .FirstOrDefault(x => x.ExternalMovieId == request.ExternalMovieId);
-
-            if (existing != null)
-            {
-                existing.Liked = true;
-            }
-            else
-            {
-                _context.MovieFeedbacks.Add(new MovieFeedback
-                {
-                    ExternalMovieId = request.ExternalMovieId,
-                    Liked = true
-                });
-            }
-
-            _context.SaveChanges();
-            return Ok("Movie liked.");
-        }
-
-        // =========================
-        // DISLIKE
-        // =========================
-        [HttpPost("dislike")]
-        public IActionResult DislikeMovie([FromBody] FeedbackRequest request)
-        {
-            if (request == null || request.ExternalMovieId <= 0)
-                return BadRequest("Invalid movie id.");
-
-            var existing = _context.MovieFeedbacks
-                .FirstOrDefault(x => x.ExternalMovieId == request.ExternalMovieId);
-
-            if (existing != null)
-            {
-                existing.Liked = false;
-            }
-            else
-            {
-                _context.MovieFeedbacks.Add(new MovieFeedback
-                {
-                    ExternalMovieId = request.ExternalMovieId,
-                    Liked = false
-                });
-            }
-
-            _context.SaveChanges();
-            return Ok("Movie disliked.");
         }
     }
 }
