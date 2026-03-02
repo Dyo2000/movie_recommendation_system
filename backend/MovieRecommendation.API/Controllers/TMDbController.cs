@@ -56,5 +56,23 @@ namespace MovieRecommendation.API.Controllers
 
             return Ok(movie);
         }
+        
+        /// <summary> Get a random movie based on selected genres </summary>
+        [HttpPost("random-by-genres")]
+        public async Task<IActionResult> GetRandomMovieByGenres([FromBody] GenreFilter filter)
+        {
+            if (filter?.GenreIds == null || !filter.GenreIds.Any())
+                return BadRequest("At least one genre is required.");
+
+            var movies = await _tmdbService.GetMoviesByGenresAsync(filter.GenreIds);
+
+            if (!movies.Any())
+                return NotFound("No movies found for these genres.");
+
+            var random = new Random();
+            var movie = movies[random.Next(movies.Count)];
+
+            return Ok(movie);
+        }
     }
 }

@@ -48,7 +48,8 @@ namespace MovieRecommendation.API.Services
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var result = JsonSerializer.Deserialize<TMDbMovieResponse>(json,
+            // FIX: TMDbMovieResponse -> TMDbMovieResult
+            var result = JsonSerializer.Deserialize<TMDbMovieResult>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return result?.Results ?? new List<TMDbMovie>();
@@ -66,7 +67,8 @@ namespace MovieRecommendation.API.Services
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var result = JsonSerializer.Deserialize<TMDbMovieResponse>(json,
+            // FIX: TMDbMovieResponse -> TMDbMovieResult
+            var result = JsonSerializer.Deserialize<TMDbMovieResult>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return result?.Results ?? new List<TMDbMovie>();
