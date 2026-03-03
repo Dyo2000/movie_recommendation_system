@@ -25,7 +25,6 @@ namespace MovieRecommendation.API.Data
                 {
                     Title = "The Matrix",
                     Overview = "A computer hacker learns about the true nature of his reality and his role in the war against its controllers.",
-                    ReleaseYear = 1999,
                     PosterUrl = "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
                     Rating = 8.7,
                     Genre = action
@@ -34,7 +33,6 @@ namespace MovieRecommendation.API.Data
                 {
                     Title = "The Hangover",
                     Overview = "Three buddies wake up from a bachelor party in Las Vegas, with no memory of the previous night and the bachelor missing.",
-                    ReleaseYear = 2009,
                     PosterUrl = "https://image.tmdb.org/t/p/w500/uluhlXubGu1VxU63X9d8r3qMsa.jpg",
                     Rating = 7.7,
                     Genre = comedy
@@ -43,7 +41,6 @@ namespace MovieRecommendation.API.Data
                 {
                     Title = "The Conjuring",
                     Overview = "Paranormal investigators Ed and Lorraine Warren work to help a family terrorized by a dark presence in their farmhouse.",
-                    ReleaseYear = 2013,
                     PosterUrl = "https://image.tmdb.org/t/p/w500/4Y39QYtLqZz2iYFvRkUuGZllq.jpg",
                     Rating = 7.5,
                     Genre = horror

@@ -1,9 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using MovieRecommendation.API.Data;
 using MovieRecommendation.API.Models;
+using MovieRecommendation.API.Services;
 
 namespace MovieRecommendation.API.Controllers
 {
@@ -12,10 +10,29 @@ namespace MovieRecommendation.API.Controllers
     public class MoviesController : ControllerBase
     {
         private readonly MovieRecommendationContext _context;
+        private readonly TmdbService _tmdbService;
 
-        public MoviesController(MovieRecommendationContext context)
+        public MoviesController(
+            MovieRecommendationContext context,
+            TmdbService tmdbService)
         {
             _context = context;
+            _tmdbService = tmdbService;
+        }
+
+        [HttpGet("discover")]
+        public async Task<IActionResult> Discover()
+        {
+            var tmdbMovies = await _tmdbService.GetPopularMoviesAsync();
+
+            await _tmdbService.SyncMoviesToDatabaseAsync(tmdbMovies);
+
+            var localMovies = _context.Movies
+                .OrderByDescending(m => m.Id)
+                .Take(20)
+                .ToList();
+
+            return Ok(localMovies);
         }
 
         // Get all genres
@@ -29,7 +46,7 @@ namespace MovieRecommendation.API.Controllers
             return Ok(genres);
         }
 
-        // Random movie, biased toward liked genres and excluding disliked movies
+        // Weighted random movie
         [HttpPost("random")]
         public IActionResult GetRandomMovie([FromBody] GenreFilter? filter)
         {
@@ -47,7 +64,7 @@ namespace MovieRecommendation.API.Controllers
 
             var movies = query.ToList();
             if (!movies.Any())
-                return NotFound("No movies available for the selected genres and preferences.");
+                return NotFound("No movies available.");
 
             var likedGenreIds = _context.UserMoviePreferences
                 .Where(p => p.IsLiked)
@@ -68,13 +85,13 @@ namespace MovieRecommendation.API.Controllers
             {
                 if (roll < w.Weight)
                     return Ok(w.Movie);
+
                 roll -= w.Weight;
             }
 
             return Ok(weightedMovies.First().Movie);
         }
 
-        // Get movies by genres (all matches)
         [HttpPost("by-genres")]
         public IActionResult GetByGenres([FromBody] GenreFilter filter)
         {
@@ -88,51 +105,47 @@ namespace MovieRecommendation.API.Controllers
             return Ok(movies);
         }
 
-        // Like a movie
         [HttpPost("like")]
         public IActionResult LikeMovie([FromBody] int movieId)
         {
+            if (!_context.Movies.Any(m => m.Id == movieId))
+                return BadRequest("Movie does not exist.");
+
             var existing = _context.UserMoviePreferences
                 .FirstOrDefault(p => p.MovieId == movieId && p.UserId == 1);
 
             if (existing != null)
-            {
                 existing.IsLiked = true;
-            }
             else
-            {
                 _context.UserMoviePreferences.Add(new UserMoviePreference
                 {
                     MovieId = movieId,
-                    IsLiked = true,
-                    UserId = 1 // TODO: replace with actual authenticated user ID
+                    UserId = 1,
+                    IsLiked = true
                 });
-            }
 
             _context.SaveChanges();
             return Ok();
         }
 
-        // Dislike a movie
         [HttpPost("dislike")]
         public IActionResult DislikeMovie([FromBody] int movieId)
         {
+            if (!_context.Movies.Any(m => m.Id == movieId))
+                return BadRequest("Movie does not exist.");
+
             var existing = _context.UserMoviePreferences
                 .FirstOrDefault(p => p.MovieId == movieId && p.UserId == 1);
 
             if (existing != null)
-            {
                 existing.IsLiked = false;
-            }
             else
-            {
                 _context.UserMoviePreferences.Add(new UserMoviePreference
                 {
                     MovieId = movieId,
-                    IsLiked = false,
-                    UserId = 1 // TODO: replace with actual authenticated user ID
+                    UserId = 1,
+                    IsLiked = false
                 });
-            }
 
             _context.SaveChanges();
             return Ok();

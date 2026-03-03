@@ -1,77 +1,142 @@
 using System.Text.Json;
-using Microsoft.Extensions.Options;
-using MovieRecommendation.API.Models.TMDb;
-using MovieRecommendation.API.Models.Settings;
+using Microsoft.EntityFrameworkCore;
+using MovieRecommendation.API.Data;
+using MovieRecommendation.API.Models;
 
 namespace MovieRecommendation.API.Services
 {
-    public class TMDbService
+    public class TmdbService
     {
         private readonly HttpClient _httpClient;
-        private readonly TMDbSettings _settings;
+        private readonly IConfiguration _configuration;
+        private readonly MovieRecommendationContext _context;
 
-        public TMDbService(HttpClient httpClient, IOptions<TMDbSettings> settings)
+        public TmdbService(
+            HttpClient httpClient,
+            IConfiguration configuration,
+            MovieRecommendationContext context)
         {
             _httpClient = httpClient;
-            _settings = settings.Value;
+            _configuration = configuration;
+            _context = context;
         }
 
-        /// <summary>
-        /// Get list of all movie genres from TMDb
-        /// </summary>
-        public async Task<List<TMDbGenre>> GetGenresAsync()
+        // Fetch popular movies from TMDb
+        public async Task<List<TmdbMovieDto>> GetPopularMoviesAsync()
         {
-            var url = $"{_settings.BaseUrl}/genre/movie/list?api_key={_settings.ApiKey}";
+            var apiKey = _configuration["TMDB:ApiKey"];
+            var url = $"https://api.themoviedb.org/3/movie/popular?api_key={apiKey}";
 
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var result = JsonSerializer.Deserialize<TMDbGenreResponse>(json,
+            var result = JsonSerializer.Deserialize<TmdbResponseDto>(
+                json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            return result?.Genres ?? new List<TMDbGenre>();
+            return result?.Results ?? new List<TmdbMovieDto>();
         }
 
-        /// <summary>
-        /// Discover movies by genre IDs
-        /// </summary>
-        public async Task<List<TMDbMovie>> GetMoviesByGenresAsync(List<int> genreIds)
+        // Fetch genres from TMDb
+        public async Task<List<TmdbGenreDto>> GetGenresAsync()
         {
-            var genreQuery = string.Join(",", genreIds);
-
-            var url = $"{_settings.BaseUrl}/discover/movie?api_key={_settings.ApiKey}&with_genres={genreQuery}";
+            var apiKey = _configuration["TMDB:ApiKey"];
+            var url = $"https://api.themoviedb.org/3/genre/movie/list?api_key={apiKey}&language=en-US";
 
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
 
-            // FIX: TMDbMovieResponse -> TMDbMovieResult
-            var result = JsonSerializer.Deserialize<TMDbMovieResult>(json,
+            var result = JsonSerializer.Deserialize<TmdbGenreResponseDto>(
+                json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            return result?.Results ?? new List<TMDbMovie>();
+            return result?.Genres ?? new List<TmdbGenreDto>();
         }
 
-        /// <summary>
-        /// Get popular movies
-        /// </summary>
-        public async Task<List<TMDbMovie>> GetPopularMoviesAsync()
+        // Fetch movies by TMDb genre IDs
+        public async Task<List<TmdbMovieDto>> GetMoviesByGenresAsync(List<int> genreIds)
         {
-            var url = $"{_settings.BaseUrl}/movie/popular?api_key={_settings.ApiKey}";
+            var apiKey = _configuration["TMDB:ApiKey"];
+            var genreParam = string.Join(",", genreIds);
+            var url = $"https://api.themoviedb.org/3/discover/movie?api_key={apiKey}&with_genres={genreParam}";
 
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
 
-            // FIX: TMDbMovieResponse -> TMDbMovieResult
-            var result = JsonSerializer.Deserialize<TMDbMovieResult>(json,
+            var result = JsonSerializer.Deserialize<TmdbResponseDto>(
+                json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            return result?.Results ?? new List<TMDbMovie>();
+            return result?.Results ?? new List<TmdbMovieDto>();
         }
+
+        // Sync TMDb movies into local database
+        public async Task SyncMoviesToDatabaseAsync(List<TmdbMovieDto> tmdbMovies)
+        {
+            foreach (var tmdbMovie in tmdbMovies)
+            {
+                var existingMovie = await _context.Movies
+                    .FirstOrDefaultAsync(m => m.ExternalId == tmdbMovie.Id);
+
+                if (existingMovie != null)
+                    continue;
+
+                // For simplicity, just take the first genre that exists locally
+                var localGenre = await _context.Genres
+                    .FirstOrDefaultAsync(g => tmdbMovie.GenreIds.Contains(g.ExternalId));
+
+                if (localGenre == null)
+                    continue;
+
+            var newMovie = new Movie
+            {
+                ExternalId = tmdbMovie.Id,
+                Title = tmdbMovie.Title ?? string.Empty,
+                Overview = tmdbMovie.Overview ?? string.Empty,
+                ReleaseDate = tmdbMovie.ReleaseDate,
+                GenreId = localGenre.Id,
+                PosterUrl = tmdbMovie.PosterPath ?? string.Empty,
+                Rating = tmdbMovie.VoteAverage
+            };
+
+                _context.Movies.Add(newMovie);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    // DTOs
+    public class TmdbResponseDto
+    {
+        public List<TmdbMovieDto> Results { get; set; } = new();
+    }
+
+    public class TmdbMovieDto
+    {
+        public int Id { get; set; }
+        public string? Title { get; set; }
+        public string? Overview { get; set; }
+        public DateTime? ReleaseDate { get; set; }
+        public List<int> GenreIds { get; set; } = new();
+        public string? PosterPath { get; set; }
+        public double? VoteAverage { get; set; }
+    }
+
+    public class TmdbGenreResponseDto
+    {
+        public List<TmdbGenreDto> Genres { get; set; } = new();
+    }
+
+    public class TmdbGenreDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
 }

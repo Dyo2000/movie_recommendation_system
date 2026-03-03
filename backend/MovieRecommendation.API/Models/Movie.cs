@@ -1,25 +1,35 @@
+using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace MovieRecommendation.API.Models
 {
     public class Movie
     {
+        [Key]
         public int Id { get; set; }
 
-        // External API movie id
         public int ExternalId { get; set; }
 
         public string Title { get; set; } = string.Empty;
 
-        public string? Overview { get; set; }
+        public string Overview { get; set; } = string.Empty;
 
-        public int ReleaseYear { get; set; }
+        // TMDb release date
+        public DateTime? ReleaseDate { get; set; }
 
-        public string? PosterUrl { get; set; }
+        // TMDb release year (optional convenience)
+        public int? ReleaseYear => ReleaseDate?.Year;
 
-        public double Rating { get; set; }
+        // TMDb poster URL
+        public string PosterUrl { get; set; } = string.Empty;
 
-        // Relationship to Genre
+        // TMDb rating (vote_average)
+        public double? Rating { get; set; }
+
+        // Foreign key for Genre
+        [ForeignKey("Genre")]
         public int GenreId { get; set; }
-
-        public Genre? Genre { get; set; }
+        public Genre Genre { get; set; } = null!;
     }
 }

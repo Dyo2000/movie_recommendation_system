@@ -8,9 +8,9 @@ namespace MovieRecommendation.API.Controllers
     [Route("api/[controller]")]
     public class TMDbController : ControllerBase
     {
-        private readonly TMDbService _tmdbService;
+        private readonly TmdbService _tmdbService;
 
-        public TMDbController(TMDbService tmdbService)
+        public TMDbController(TmdbService tmdbService)
         {
             _tmdbService = tmdbService;
         }
@@ -36,7 +36,6 @@ namespace MovieRecommendation.API.Controllers
                 return BadRequest("At least one genre must be selected.");
 
             var movies = await _tmdbService.GetMoviesByGenresAsync(filter.GenreIds);
-
             return Ok(movies);
         }
 
@@ -47,16 +46,14 @@ namespace MovieRecommendation.API.Controllers
         public async Task<IActionResult> GetRandomMovie()
         {
             var movies = await _tmdbService.GetPopularMoviesAsync();
-
-            if (movies == null || !movies.Any())
-                return NotFound("No movies found.");
+            if (!movies.Any()) return NotFound("No movies found.");
 
             var random = new Random();
             var movie = movies[random.Next(movies.Count)];
 
             return Ok(movie);
         }
-        
+
         /// <summary> Get a random movie based on selected genres </summary>
         [HttpPost("random-by-genres")]
         public async Task<IActionResult> GetRandomMovieByGenres([FromBody] GenreFilter filter)
@@ -65,9 +62,7 @@ namespace MovieRecommendation.API.Controllers
                 return BadRequest("At least one genre is required.");
 
             var movies = await _tmdbService.GetMoviesByGenresAsync(filter.GenreIds);
-
-            if (!movies.Any())
-                return NotFound("No movies found for these genres.");
+            if (!movies.Any()) return NotFound("No movies found for these genres.");
 
             var random = new Random();
             var movie = movies[random.Next(movies.Count)];

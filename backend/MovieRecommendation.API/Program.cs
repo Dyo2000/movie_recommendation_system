@@ -36,7 +36,7 @@ builder.Services.Configure<TMDbSettings>(
     builder.Configuration.GetSection("TMDb"));
 
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<TMDbService>();
+builder.Services.AddScoped<TmdbService>();
 
 var app = builder.Build();
 
